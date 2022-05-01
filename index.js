@@ -19,7 +19,8 @@ const participantsSchema = joi.object({
 const messageSchema = joi.object({
     to: joi.string().required(),
     text: joi.string().required(),
-    type: joi.string().valid("message","private_message").required()
+    type: joi.string().required(),
+    from: joi.string().required()
 })
 
 const app = express()
@@ -63,8 +64,42 @@ app.get("/participants", (req,res) => {
 
 app.post("/messages", (req,res) => {
     req.body.from = req.headers.user
-    const message = req.body
-    dataBase.collection("messages").insertOne(message)
+    const validation = messageSchema.validate(req.body)
+    if(validation.error){
+        res.sendStatus(422)
+    }
+    else{
+        const time = dayjs(new Date())
+        if(time.$m < 10){
+            time.$m = "0" + time.$m
+        }
+        if(time.$s < 10){
+            time.$s = "0" + time.$s
+        }
+        if(time.$H < 10){
+            time.$H = "0" + time.$H
+        }
+        req.body.time = `${time.$H}:${time.$m}:${time.$s}`
+        dataBase.collection("messages").insertOne(req.body)
+        res.sendStatus(201)
+    }  
+})
+
+app.get("/messages", (req,res) => {
+    const limit = req.query.limit
+    if(!limit){
+        dataBase.collection("messages").find().toArray().then(message => {
+            res.send(message)
+        })
+    }
+    else{
+        dataBase.collection("messages").find().toArray().then(message => {
+            if(message.length > 50){
+                message.splice(0, (message.length - 50))
+                res.send(message)
+            }
+        })
+    }
 })
 
 app.listen(5000)
