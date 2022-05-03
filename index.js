@@ -45,7 +45,7 @@ app.post("/participants", (req,res) =>{
         if(time.$H < 10){
             time.$H = "0" + time.$H
         }
-        dataBase.collection("message").insertOne({
+        dataBase.collection("messages").insertOne({
             from: req.body.name,
             to: "Todos",
             text: "entra na sala...",
@@ -101,5 +101,52 @@ app.get("/messages", (req,res) => {
         })
     }
 })
+
+
+app.post("/status", (req,res) => {
+    const name = req.headers.user
+    dataBase.collection("participants").find().toArray().then(users => { 
+        users.forEach(user => {
+            if(user.name === name){
+                dataBase.collection("participants").updateOne({
+                    _id: user._id},
+                    {$set: {
+                        lastStatus: Math.round(new Date().getTime())
+                    }})
+                res.sendStatus(200)
+            }
+        })
+    })
+})
+
+function status(){
+    dataBase.collection("participants").find().toArray().then(users =>{
+        users.forEach(user =>{
+            if(Math.round(user.lastStatus/1000 + 10) < Math.round(new Date().getTime()/1000.0) ){
+                console.log(Math.round(user.lastStatus/1000), Math.round(new Date().getTime()/1000.0))
+                dataBase.collection("participants").deleteOne(user)
+                const time = dayjs(user.lastStatus)
+                if(time.$m < 10){
+                    time.$m = "0" + time.$m
+                }
+                if(time.$s < 10){
+                    time.$s = "0" + time.$s
+                }
+                if(time.$H < 10){
+                    time.$H = "0" + time.$H
+                }
+                dataBase.collection("messages").insertOne({
+                    from: user.name,
+                    to: "Todos",
+                    text: "sai da sala...",
+                    type: "status",
+                    time: `${time.$H}:${time.$m}:${time.$s}`
+                })
+            }
+        })
+    })
+}
+
+setInterval(status, 15000)
 
 app.listen(5000)
