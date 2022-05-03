@@ -19,7 +19,7 @@ const participantsSchema = joi.object({
 const messageSchema = joi.object({
     to: joi.string().required(),
     text: joi.string().required(),
-    type: joi.string().required(),
+    type: joi.string().valid("message", "private_message").required(),
     from: joi.string().required()
 })
 
@@ -32,6 +32,7 @@ app.post("/participants", (req,res) =>{
     if(validation.error){
         res.status(422).send("Preencha corretamente!")
     }
+    else{
     dataBase.collection("participants").findOne({
         name: req.body.name
     }).then(user => {
@@ -57,11 +58,10 @@ app.post("/participants", (req,res) =>{
                 text: "entra na sala...",
                 type: "status",
                 time: `${time.$H}:${time.$m}:${time.$s}`
-            })
-            
-            res.sendStatus(201)
+            }).then(res.sendStatus(201))
         }
     })
+    }
 })
 
 app.get("/participants", (req,res) => {
@@ -124,6 +124,7 @@ app.get("/messages", (req,res) => {
 
 app.post("/status", (req,res) => {
     const name = req.headers.user
+    let validation = false
     dataBase.collection("participants").find().toArray().then(users => { 
         users.forEach(user => {
             if(user.name === name){
@@ -131,11 +132,16 @@ app.post("/status", (req,res) => {
                     _id: user._id},
                     {$set: {
                         lastStatus: Math.round(new Date().getTime())
-                    }}).then(
-                        res.sendStatus(200)
-                    )
+                }}).then(validation = true)
             }
         })
+        if(validation){
+            res.sendStatus(200)
+            validation = false
+        }
+        else{
+            res.sendStatus(404)
+        }
     })
 })
 
